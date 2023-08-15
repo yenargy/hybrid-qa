@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { ChevronRightCircle, ChevronLeftCircle } from "lucide-react"
+import { supabase } from "@/lib/supabase";
 import {
   Form,
   FormControl,
@@ -15,15 +16,12 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormState
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -47,59 +45,101 @@ const questions = [
   "Who is the president of India?"
 ];
 
-const formSchema = z.object({
+const thoughtsSchema = z.object({
   thought: z
     .string()
     .min(10, {
       message: "Thought must be at least 10 characters.",
     }),
-  action: z.optional(
-    z.string({
-      required_error: "Please select a tool"
-    })),
+  action: z
+    .string(),
   actionInput: z
-    .string({
-      required_error: "Please enter the tool's input"
+    .string()
+    .min(3, {
+      message: "Enter atleast 3 characters",
     }),
-  wikipedia: z.optional
-    (z.string()),
-  wikidata: z.optional
-    (z.string()),
+  finalCheck: z.literal( false ),
 })
+
+const finalFormSchema = z.object({
+  thought: z
+    .string()
+    .min(10, {
+      message: "Thought must be at least 10 characters.",
+    }),
+  wikipedia: z
+    .string()
+    .min(3, {
+      message: "Enter atleast 3 characters",
+    }),
+  wikidata: z
+    .string()
+    .min(3, {
+      message: "Enter atleast 3 characters",
+    }),
+  finalCheck: z.literal( true ),
+})
+
+const formSchema = z.discriminatedUnion('finalCheck', [
+  thoughtsSchema,
+  finalFormSchema
+])
 
 export default function Thoughts({onFormSubmit, clearFormData, formData}) {
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [finalCheck , setFinalCheck] = useState(false);
+  
+  const defaultValues = {
+    thought: "",
+    action: "",
+    actionInput: "",
+    wikidata: "",
+    wikipedia: "",
+    finalCheck: false
+  }
 
   // 1. Define your form.
   const form = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      thought: "",
-      actionInput: "",
-      wikidata: "",
-      wikipedia: ""
-    },
+    defaultValues
   })
 
   // 2. Define a submit handler.
-  function onSubmit(values) {
+  const onSubmit = async(values) => {
     console.log(values);
-    if (finalCheck) {
-      console.log('here');
-      resetFormFields();
-      // Resetting global form data (observations)
-      clearFormData();
 
-      setQuestionIndex((prevIndex) => prevIndex + 1);
+    // Submit entire form data to db if this check is enabled
+    if (form.getValues('finalCheck')) {
+      const finalPayload = [...formData, values]
+      console.log(finalPayload);
+      try {
+        const { data, error } = await supabase
+          .from("thoughts_responses")
+          .insert([
+            {
+              data: finalPayload,
+            },
+          ])
+          .single();
+          
+        // Resetting global form data (observations)
+        clearFormData();
+
+        // Moving to next question after success
+        setQuestionIndex((prevIndex) => prevIndex + 1);
+        if (error) throw error;
+      } catch (error) {
+        console.log(error);
+      }
     } else {
+      // Appending to main form data
       onFormSubmit(values);
     }
+    resetFormFields();
   }
 
   function resetFormFields() {
     // Resetting current form data
-    form.reset({thought: "", action: "", actionInput: "", wikipedia: "", wikidata: ""});
+    form.reset(defaultValues);
   }
 
   function handleNextQuestionClick() {
@@ -124,14 +164,12 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
     setQuestionIndex((prevIndex) => prevIndex - 1);
   }
 
+  const isSubmitDisabled = !form.watch('finalCheck') && (form.watch('action').length === 0);
 
   useEffect(() => {
-    if (form.formState.isSubmitSuccessful) {
-      form.reset({thought: "",
-      action: "",
-      actionInput: ""});
-    }
-  }, [form.formState])
+    form.reset(defaultValues);
+    form.resetField("action");
+  }, [form.formState.isSubmitSuccessful])
 
   return (
     <div className="w-full max-h-[90%] min-h-[90%] overflow-auto rounded-xl border bg-card text-card-foreground shadow p-10">
@@ -205,7 +243,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
               </FormItem>
             )}
           />
-          {!finalCheck ?
+          {!form.watch('finalCheck') ?
             <>
               <FormField
                 control={form.control}
@@ -216,7 +254,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
                       <FormLabel>Choose your action</FormLabel>
                       <FormMessage />
                     </div>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a tool for your action" />
@@ -242,7 +280,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
                 render={({ field }) => (
                   <FormItem>
                     <div className="flex flex-row space-x-2 items-center justify-between">
-                      <FormLabel>Enter your input for the action</FormLabel>
+                      <FormLabel>Input for your action</FormLabel>
                       <FormMessage />
                     </div>
                     <FormControl>
@@ -297,16 +335,31 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
             />
             </>
           }
-          <div className="bg-card rounded-lg border flex flex-row items-center justify-between p-4">
-            <div className="space-y-0.5">
-              <FormLabel className="text-sm">
-                Submit final answer
-              </FormLabel>
-              <FormDescription className="text-xs opacity-50">Enable this only if you find the answer</FormDescription>
-            </div>
-            <Switch checked={finalCheck} onCheckedChange={setFinalCheck}/>
+          <div className="space-y-0.5">
+            <FormField
+              control={form.control}
+              name="finalCheck"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-sm">
+                      Submit final answer
+                    </FormLabel>
+                    <FormDescription className="text-xs">
+                      Enable this only if you find the answer
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </div>
-          <Button type="submit">Submit</Button>
+          <Button type="submit" disabled={isSubmitDisabled}>Submit</Button>
         </form>
       </Form>
     </div>
