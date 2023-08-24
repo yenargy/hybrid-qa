@@ -1,6 +1,45 @@
-export default function Observations({ data }) {
+"use client"
+
+import { ThumbsUpIcon, ThumbsDownIcon } from "lucide-react"
+import { supabase } from "@/lib/supabase";
+import { useEffect, useState, useRef } from "react";
+
+export default function Observations({ data, updateFormData }) {
+  const containerRef = useRef(null);
+  const handleRatingClick = async(item, response, index) => {
+    try {
+      const { data, error } = await supabase
+          .from("feedback")
+          .insert([
+            {
+              question: item.question,
+              data: item,
+              response: (response === 'yes' ? true: false)
+            },
+          ])
+          .single();
+        if (error) throw error;
+      } catch (error) {
+        console.log(error);
+      }
+    
+    const updatedData = [...data];
+
+    updatedData[index] = {
+      ...updatedData[index],
+      showFeedback: false    
+    }
+    updateFormData(updatedData);
+  }
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [data]);
+
   return (
-    <div className="w-full max-h-[90%] min-h-[90%] rounded-xl border bg-card text-card-foreground shadow p-10 overflow-auto">
+    <div className="w-full max-h-[90%] min-h-[90%] rounded-xl border bg-card text-card-foreground shadow p-10 overflow-auto" ref={containerRef}>
       <h3 className="text-xl font-bold pb-2">History</h3>
       {data.length > 0 ? (
         <div>
@@ -18,9 +57,32 @@ export default function Observations({ data }) {
               <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
                 {item.actionInput}
               </div>
-              <h3 className="text-sm font-medium pt-4 pb-2">Observations</h3>
-              <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
-                {item.observations}
+              <h3 className="text-sm font-medium pt-4 pb-2">Observation</h3>
+              <div className="flex flex-col">
+                <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
+                  {JSON.stringify(item.response)}
+                </div>
+                {item.showFeedback ? (
+                  <div className="flex flex-row space-x-2 items-center">
+                    <p className="text-sm opacity-50">Was this tool helpful?</p>
+                    <div className="flex flex-row space-x-2">
+                      <ThumbsUpIcon
+                          onClick={() => {
+                            handleRatingClick(item, "yes", index);
+                          }}
+                          className="cursor-pointer w-4 opacity-50 hover:opacity-100"
+                        />
+                        <ThumbsDownIcon
+                          onClick={() => {
+                            handleRatingClick(item, "no", index);
+                          }}
+                          className="cursor-pointer w-4 opacity-50 hover:opacity-100"
+                        />
+                    </div>
+                  </div>
+                ): (
+                  <p className="text-sm opacity-50">Thanks for your feedback!</p>
+                )}
               </div>
               {(data.length > 1) && (data.length !== index+1) ? <hr className="mt-8 mb-4"/> : ''}
             </div>

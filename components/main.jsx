@@ -11,6 +11,10 @@ export default function Main() {
     setFormData((prevData) => [...prevData, newData]);
   }
 
+  const updateFormData = (newData) => {
+    setFormData(newData);
+  }
+
   return (
     <div className="flex w-auto h-full justify-center">
       <div className="flex flex-col w-2/5 h-full">
@@ -20,7 +24,7 @@ export default function Main() {
       </div>
       <div className="flex flex-col w-2/5 h-full">
         <div className="flex-1 overflow-y-auto p-4">
-          <Observations data={formData}/>
+          <Observations data={formData} updateFormData={updateFormData}/>
         </div>
       </div>
     </div>

@@ -41,9 +41,36 @@ import { Textarea } from "@/components/ui/textarea";
 
 
 const questions = [
-  "Peter Quill in Guardians of the Galaxy was born in which U.S. state?",
+  "How many Lord of the Rings movies was Gandalf the White in?",
   "Who is the president of India?"
 ];
+
+const tools = {
+  'Wikipedia Search': {
+    api: 'search_relevant_article_and_summarize',
+    backend: 'WikiSearch'
+  },
+  'Wikipedia Search Summary': {
+    api: 'search_answer_from_article',
+    backend: 'WikiSearchSummary'
+  },
+  'Get Wikidata ID': {
+    api: 'get_wiki_id',
+    backend: 'GetWikidataID'
+  },
+  'Generate Squall': {
+    api: 'squall_tool',
+    backend: 'GenerateSquall'
+  },
+  'Run Sparql Query': {
+    api: 'run_sparql',
+    backend: 'RunSparql'
+  },
+  'Get Label': {
+    api: 'get_label_from_id',
+    backend: 'GetLabel'
+  }
+};
 
 const thoughtsSchema = z.object({
   thought: z
@@ -69,12 +96,12 @@ const finalFormSchema = z.object({
     }),
   wikipedia: z
     .string()
-    .min(3, {
+    .min(1, {
       message: "Enter atleast 3 characters",
     }),
   wikidata: z
     .string()
-    .min(3, {
+    .min(1, {
       message: "Enter atleast 3 characters",
     }),
   finalCheck: z.literal( true ),
@@ -87,6 +114,7 @@ const formSchema = z.discriminatedUnion('finalCheck', [
 
 export default function Thoughts({onFormSubmit, clearFormData, formData}) {
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
   
   const defaultValues = {
     thought: "",
@@ -105,22 +133,34 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
 
   // 2. Define a submit handler.
   const onSubmit = async(values) => {
-    console.log(values);
+    if (values.action === 'WikiSearch' || values.action === 'GenerateSquall' || values.action === 'WikiSearchSummary' ) {
+      values.actionInput = questions[questionIndex] + '#' + values.actionInput;
+    }
+
+    values.action
+    
+    const currentFormData = {
+      question: questions[questionIndex],
+      ...values,
+      showFeedback: true
+    }
 
     // Submit entire form data to db if this check is enabled
     if (form.getValues('finalCheck')) {
       const finalPayload = [...formData, values]
       console.log(finalPayload);
+      setLoading(true);
       try {
         const { data, error } = await supabase
           .from("thoughts_responses")
           .insert([
             {
+              question: questions[questionIndex],
               data: finalPayload,
             },
           ])
           .single();
-          
+        setLoading(false);
         // Resetting global form data (observations)
         clearFormData();
 
@@ -128,11 +168,41 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
         setQuestionIndex((prevIndex) => prevIndex + 1);
         if (error) throw error;
       } catch (error) {
+        setLoading(false);
         console.log(error);
       }
     } else {
-      // Appending to main form data
-      onFormSubmit(values);
+      //Appending to main form data
+      setLoading(true);
+      try {
+        const response = await fetch('http://35.157.228.1:8000/fetch_observation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accept' : 'application/json'
+          },
+          body: JSON.stringify({
+            "action": values.action,
+            "action_input": values.actionInput
+          })
+        });
+        if (response.ok) {
+          const responseData = await response.json();
+          console.log('Form data submitted successfully');
+          console.log(responseData);
+          currentFormData.response = responseData.message;
+          onFormSubmit(currentFormData);
+          setLoading(false);
+        } else {
+          console.log('api failed');
+          console.log(response);
+          throw new Error('Failed to submit form data');
+          setLoading(false);
+        }
+      } catch (error) {
+        setLoading(false);
+        console.log(error);
+      }
     }
     resetFormFields();
   }
@@ -261,14 +331,17 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="wikiSearch">Wikipedia Search</SelectItem>
-                        <SelectItem value="squall2Sparql">Convert Squall to Sparql</SelectItem>
-                        <SelectItem value="getWikidataID">Get Wikidata ID</SelectItem>
-                        <SelectItem value="generateSquall">Generate Squall</SelectItem>
-                        <SelectItem value="runSparql">Run Sparql Query</SelectItem>
-                        <SelectItem value="wikiSearchSummary">Wikipedia Search Summary</SelectItem>
-                        <SelectItem value="getLabel">Get Label</SelectItem>
-                        <SelectItem value="getObservation">Get Observation from LLM</SelectItem>
+                        {Object.entries(tools).map(([toolName, toolValue]) => (
+                          <SelectItem key={toolValue.backend} value={toolValue.backend}>
+                            {toolName}
+                          </SelectItem>
+                        ))}
+                        {/* <SelectItem value="search_relevant_article_and_summarize">Wikipedia Search</SelectItem>
+                        <SelectItem value="get_wiki_id">Get Wikidata ID</SelectItem>
+                        <SelectItem value="squall_tool">Generate Squall</SelectItem>
+                        <SelectItem value="run_sparql">Run Sparql Query</SelectItem>
+                        <SelectItem value="search_answer_from_article">Wikipedia Search Summary</SelectItem>
+                        <SelectItem value="get_label_from_id">Get Label</SelectItem> */}
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -359,7 +432,18 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
               )}
             />
           </div>
-          <Button type="submit" disabled={isSubmitDisabled}>Submit</Button>
+          <Button type="submit" disabled={isSubmitDisabled || loading}>{
+            loading ? 
+            <span className="flex flex-row">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </span>
+            :
+            <span>Submit</span>
+          }</Button>
         </form>
       </Form>
     </div>
