@@ -43,7 +43,7 @@ export default function Observations({ data, updateFormData }) {
         <div>
           {Array.isArray(responses) ? (
             responses.map((response, index) => (
-              <div key={index}>{response.value}</div>
+              <div key={index}>{JSON.stringify(response)}</div>
             ))
           ) : (
             <div>{responses}</div>

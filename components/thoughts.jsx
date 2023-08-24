@@ -196,7 +196,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
         if (response.ok) {
           const responseData = await response.json();
           console.log('Form data submitted successfully');
-          currentFormData.response = responseData.message ? responseData.message : JSON.stringify(JSON.parse(responseData));
+          currentFormData.response = responseData.message ? responseData.message : JSON.stringify(responseData);
           onFormSubmit(currentFormData);
           setLoading(false);
         } else {
@@ -236,7 +236,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
         setLoadingState('Looks like we have exhausted all our questions. We appretiate your valuable time!')
       }
       setQuestion(data[0]);
-      // setQuestion({question: 'What is the population of cairo?', id: '123', dataset: 'asa'})
+      // setQuestion({question: 'Which official languages of the European Union do not use the Latin script?', id: '123', dataset: 'asa'})
     } catch (error) {
       console.log(error);
     }
