@@ -261,7 +261,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   return (
     <div className="w-full max-h-[90%] min-h-[90%] overflow-auto rounded-xl border bg-card text-card-foreground shadow p-10">
       <div className="flex flex-row justify-between">
-        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-xs font-normal opacity-50">Please answer atleast 15 questions</p></h3>
+        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-xs font-normal opacity-50">Please answer atleast 15 unique questions</p></h3>
         <div className="flex flex-row space-x-2">
           <span className={!question ? 'opacity-20': 'cursor-pointer hover:opacity-80'}>
             {(!form.formState.isDirty && formData.length === 0) ? 

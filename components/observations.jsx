@@ -33,6 +33,11 @@ export default function Observations({ data, updateFormData }) {
     updateFormData(updatedData);
   }
 
+  const formatedResponse = (response) => {
+    const formatted = typeof response === 'string' ? response.replace(/\n/g, "<br/>") : response;
+    return <div dangerouslySetInnerHTML={{ __html: formatted }}></div>;
+  }
+
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
@@ -60,9 +65,9 @@ export default function Observations({ data, updateFormData }) {
               </div>
               <h3 className="text-sm font-medium pt-4 pb-2">Observation</h3>
               <div className="flex flex-col">
-                <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
-                  {JSON.stringify(item.response)}
-                </div>
+              <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
+                {formatedResponse(item.response)}
+              </div>
                 {item.showFeedback ? (
                   <div className="flex flex-row space-x-2 items-center">
                     <p className="text-sm">Was this observations helpful?</p>
