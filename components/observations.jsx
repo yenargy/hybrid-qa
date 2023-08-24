@@ -13,6 +13,7 @@ export default function Observations({ data, updateFormData }) {
           .insert([
             {
               question: item.question,
+              dataset: item.dataset,
               data: item,
               response: (response === 'yes' ? true: false)
             },
@@ -88,7 +89,7 @@ export default function Observations({ data, updateFormData }) {
             </div>
           ))}
         </div>
-      ) : 'All your thoughts submission will be here'}
+      ) : <p className="font-sm opacity-50">All your submission responses will be here</p>}
     </div>
   )
 }

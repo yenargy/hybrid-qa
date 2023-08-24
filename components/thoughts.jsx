@@ -40,11 +40,6 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea";
 
 
-const questions = [
-  "How many Lord of the Rings movies was Gandalf the White in?",
-  "Who is the president of India?"
-];
-
 const tools = {
   'Wikipedia Search': {
     api: 'search_relevant_article_and_summarize',
@@ -75,8 +70,8 @@ const tools = {
 const thoughtsSchema = z.object({
   thought: z
     .string()
-    .min(10, {
-      message: "Thought must be at least 10 characters.",
+    .min(3, {
+      message: "Thought must be at least 3 characters.",
     }),
   action: z
     .string(),
@@ -89,11 +84,6 @@ const thoughtsSchema = z.object({
 })
 
 const finalFormSchema = z.object({
-  thought: z
-    .string()
-    .min(10, {
-      message: "Thought must be at least 10 characters.",
-    }),
   wikipedia: z
     .string()
     .min(1, {
@@ -102,6 +92,11 @@ const finalFormSchema = z.object({
   wikidata: z
     .string()
     .min(1, {
+      message: "Enter atleast 3 characters",
+    }),
+  finalThought: z
+    .string()
+    .min(3, {
       message: "Enter atleast 3 characters",
     }),
   finalCheck: z.literal( true ),
@@ -116,6 +111,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   const [loading, setLoading] = useState(false);
   const [question, setQuestion] = useState(null);
   const [noQuestions, setNoQuestions] = useState(true)
+  const [loadingState, setLoadingState] = useState('Loading question...');
   
   const defaultValues = {
     thought: "",
@@ -141,7 +137,8 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
     console.log(values);
     
     const currentFormData = {
-      question: questions[questionIndex],
+      question: question.question,
+      dataset: question.dataset,
       ...values,
       showFeedback: true
     }
@@ -156,7 +153,8 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
           .from("thoughts_responses")
           .insert([
             {
-              question: questions[questionIndex],
+              question: question.question,
+              dataset: question.dataset,
               data: finalPayload,
             },
           ])
@@ -166,7 +164,8 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
         clearFormData();
 
         // Moving to next question after success
-        setQuestionIndex((prevIndex) => prevIndex + 1);
+        getQuestion();
+        incrementQuestionIndex();
         if (error) throw error;
       } catch (error) {
         setLoading(false);
@@ -227,6 +226,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       if (data.length === 0) {
         // Handle case when no questions are available
         setQuestion(null);
+        setLoadingState('Looks like we have exhausted all our questions!')
       }
       setQuestion(data[0]);
     } catch (error) {
@@ -261,7 +261,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   return (
     <div className="w-full max-h-[90%] min-h-[90%] overflow-auto rounded-xl border bg-card text-card-foreground shadow p-10">
       <div className="flex flex-row justify-between">
-        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-sm">Answer atleast 15 questions</p></h3>
+        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-xs font-normal opacity-50">Please answer atleast 15 questions</p></h3>
         <div className="flex flex-row space-x-2">
           <span className={!question ? 'opacity-20': 'cursor-pointer hover:opacity-80'}>
             {(!form.formState.isDirty && formData.length === 0) ? 
@@ -287,37 +287,37 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       </div>
       {!question ? 
       <>
-        <p>Looks like we&apos;ve exhausted all the questions</p>
+        <h2 className="text-md mt-4 mb-10">{loadingState}</h2>
       </>
       :
       <>
         <h2 className="text-md mt-4 mb-10">{question && question.question}</h2>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="thought"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex flex-row space-x-2 items-center justify-between">
-                    <FormLabel>Thought</FormLabel>
-                    <FormMessage />
-                  </div>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Type your thought here"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Come up with a thought before choosing the tool
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
-            {!form.watch('finalCheck') ?
+          {!form.watch('finalCheck') ?
               <>
+                <FormField
+                  control={form.control}
+                  name="thought"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex flex-row space-x-2 items-center justify-between">
+                        <FormLabel>Thought</FormLabel>
+                        <FormMessage />
+                      </div>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Type your thought here"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Come up with a thought before choosing the tool
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="action"
@@ -403,6 +403,28 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="finalThought"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex flex-row space-x-2 items-center justify-between">
+                      <FormLabel>Final Thought</FormLabel>
+                      <FormMessage />
+                    </div>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Type your thought here"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Choose one among wikidata and wikipedia answer and explain your thoughts
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
               </>
             }
             <div className="space-y-0.5">
@@ -432,9 +454,9 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
             <Button type="submit" disabled={isSubmitDisabled || loading}>{
               loading ? 
               <span className="flex flex-row">
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Processing...
               </span>
