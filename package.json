@@ -35,5 +35,8 @@
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "^1.0.6",
     "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "encoding": "^0.1.13"
   }
 }
