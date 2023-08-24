@@ -287,7 +287,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       </div>
       {!question ? 
       <>
-        <p>Looks like we've exhausted all the questions</p>
+        <p>Looks like we&apos;ve exhausted all the questions</p>
       </>
       :
       <>
