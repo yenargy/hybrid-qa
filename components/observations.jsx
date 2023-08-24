@@ -33,8 +33,8 @@ export default function Observations({ data, updateFormData }) {
     updateFormData(updatedData);
   }
 
-  const formatedResponse = (response) => {
-    const formatted = typeof response === 'string' ? response.replace(/\n/g, "<br/>") : response;
+  const formatedResponse = (item) => {
+    const formatted = typeof item.response === 'string' ? item.response.replace(/\n/g, "<br/>") : item.response;
     return <div dangerouslySetInnerHTML={{ __html: formatted }}></div>;
   }
 
@@ -66,7 +66,7 @@ export default function Observations({ data, updateFormData }) {
               <h3 className="text-sm font-medium pt-4 pb-2">Observation</h3>
               <div className="flex flex-col">
               <div className="font-mono bg-slate-100 p-3 text-sm rounded-lg mb-2">
-                {formatedResponse(item.response)}
+                {formatedResponse(item)}
               </div>
                 {item.showFeedback ? (
                   <div className="flex flex-row space-x-2 items-center">

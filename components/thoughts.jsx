@@ -148,6 +148,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       const finalPayload = [...formData, values]
       console.log(finalPayload);
       setLoading(true);
+      console.log(question);
       try {
         const { data, error } = await supabase
           .from("thoughts_responses")
@@ -159,6 +160,12 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
             },
           ])
           .single();
+
+        const {quesData, quesError} = await supabase
+          .from("ques")
+          .update({ isused: true})
+          .eq('id', question.id)
+
         setLoading(false);
         // Resetting global form data (observations)
         clearFormData();
@@ -189,8 +196,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
         if (response.ok) {
           const responseData = await response.json();
           console.log('Form data submitted successfully');
-          console.log(responseData);
-          currentFormData.response = responseData.message;
+          currentFormData.response = responseData.message ? responseData.message : JSON.stringify(JSON.parse(responseData));
           onFormSubmit(currentFormData);
           setLoading(false);
         } else {
@@ -223,12 +229,14 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       if (error) {
         throw error;
       }
+      console.log(data);
       if (data.length === 0) {
         // Handle case when no questions are available
         setQuestion(null);
         setLoadingState('Looks like we have exhausted all our questions!')
       }
       setQuestion(data[0]);
+      // setQuestion({question: 'What is the population of cairo?', id: '123', dataset: 'asa'})
     } catch (error) {
       console.log(error);
     }
