@@ -34,8 +34,27 @@ export default function Observations({ data, updateFormData }) {
   }
 
   const formatedResponse = (item) => {
-    const formatted = typeof item.response === 'string' ? item.response.replace(/\n/g, "<br/>") : item.response;
-    return <div dangerouslySetInnerHTML={{ __html: formatted }}></div>;
+    console.log(item);
+    let formatted = null;
+    if (item.action === 'RunSparql') {
+      const responses = item.response;
+      //SELECT DISTINCT ?x1 WHERE { wd:Q85 p:P1082 ?x2 . ?x2 ps:P1082 ?x1 . }
+      return (
+        <div>
+          {Array.isArray(responses) ? (
+            responses.map((response, index) => (
+              <div key={index}>{response.value}</div>
+            ))
+          ) : (
+            <div>{responses}</div>
+          )}
+        </div>
+      )
+      
+    } else {
+      formatted = typeof item.response === 'string' ? item.response.replace(/\n/g, "<br/>") : item.response;
+      return <div dangerouslySetInnerHTML={{ __html: formatted }}></div>;
+    }
   }
 
   useEffect(() => {

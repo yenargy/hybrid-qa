@@ -233,7 +233,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       if (data.length === 0) {
         // Handle case when no questions are available
         setQuestion(null);
-        setLoadingState('Looks like we have exhausted all our questions!')
+        setLoadingState('Looks like we have exhausted all our questions. We appretiate your valuable time!')
       }
       setQuestion(data[0]);
       // setQuestion({question: 'What is the population of cairo?', id: '123', dataset: 'asa'})
