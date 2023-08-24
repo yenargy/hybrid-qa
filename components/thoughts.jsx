@@ -82,8 +82,8 @@ const thoughtsSchema = z.object({
     .string(),
   actionInput: z
     .string()
-    .min(3, {
-      message: "Enter atleast 3 characters",
+    .min(1, {
+      message: "Enter atleast 1 characters",
     }),
   finalCheck: z.literal( false ),
 })
@@ -112,9 +112,10 @@ const formSchema = z.discriminatedUnion('finalCheck', [
   finalFormSchema
 ])
 
-export default function Thoughts({onFormSubmit, clearFormData, formData}) {
-  const [questionIndex, setQuestionIndex] = useState(0);
+export default function Thoughts({onFormSubmit, clearFormData, formData, questionIndex, incrementQuestionIndex}) {
   const [loading, setLoading] = useState(false);
+  const [question, setQuestion] = useState(null);
+  const [noQuestions, setNoQuestions] = useState(true)
   
   const defaultValues = {
     thought: "",
@@ -134,10 +135,10 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
   // 2. Define a submit handler.
   const onSubmit = async(values) => {
     if (values.action === 'WikiSearch' || values.action === 'GenerateSquall' || values.action === 'WikiSearchSummary' ) {
-      values.actionInput = questions[questionIndex] + '#' + values.actionInput;
+      values.actionInput = question.question + '#' + values.actionInput;
     }
 
-    values.action
+    console.log(values);
     
     const currentFormData = {
       question: questions[questionIndex],
@@ -175,7 +176,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
       //Appending to main form data
       setLoading(true);
       try {
-        const response = await fetch('http://35.157.228.1:8000/fetch_observation', {
+        const response = await fetch('https://api.hybridqatool.com/fetch_observation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -212,26 +213,36 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
     form.reset(defaultValues);
   }
 
+  // Get question from DB
+  const getQuestion = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('random_ques')
+        .select('*')
+        .eq('isused', false)
+        .limit(1);
+      if (error) {
+        throw error;
+      }
+      if (data.length === 0) {
+        // Handle case when no questions are available
+        setQuestion(null);
+      }
+      setQuestion(data[0]);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+
   function handleNextQuestionClick() {
-    if (questionIndex === questions.length -1) return;
-
+    getQuestion();
     resetFormFields();
 
     // Resetting global form data (observations)
     clearFormData();
 
-    setQuestionIndex((prevIndex) => prevIndex + 1);
-  }
-
-  function handlePreviousQuestionClick() {
-    if (questionIndex === 0) return;
-
-    resetFormFields();
-
-    // Resetting global form data (observations)
-    clearFormData();
-
-    setQuestionIndex((prevIndex) => prevIndex - 1);
+    incrementQuestionIndex();
   }
 
   const isSubmitDisabled = !form.watch('finalCheck') && (form.watch('action').length === 0);
@@ -241,36 +252,22 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
     form.resetField("action");
   }, [form.formState.isSubmitSuccessful])
 
+  useEffect(() => {
+    getQuestion();
+    console.log(question);
+    console.log('fetching question from the db');
+  }, []);
+
   return (
     <div className="w-full max-h-[90%] min-h-[90%] overflow-auto rounded-xl border bg-card text-card-foreground shadow p-10">
       <div className="flex flex-row justify-between">
-        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1}</h3>
+        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-sm">Answer atleast 15 questions</p></h3>
         <div className="flex flex-row space-x-2">
-          <span className={questionIndex===0 ? 'opacity-20': 'cursor-pointer'}>
+          <span className={!question ? 'opacity-20': 'cursor-pointer hover:opacity-80'}>
             {(!form.formState.isDirty && formData.length === 0) ? 
-              <ChevronLeftCircle disabled={questionIndex===0} onClick={handlePreviousQuestionClick}/> : 
+              <ChevronRightCircle onClick={handleNextQuestionClick} disabled={!question}/> :
               <AlertDialog>
-                <AlertDialogTrigger disabled={questionIndex===0}><ChevronLeftCircle/></AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      You will loose any progress made in this question.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handlePreviousQuestionClick}>Continue</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            }
-          </span>
-          <span className={(questionIndex === questions.length - 1) ? 'opacity-50': 'cursor-pointer'}>
-            {(!form.formState.isDirty && formData.length === 0) ? 
-              <ChevronRightCircle disabled={questionIndex === questions.length - 1} onClick={handleNextQuestionClick}/> :
-              <AlertDialog>
-                <AlertDialogTrigger disabled={questionIndex === questions.length - 1}><ChevronRightCircle/></AlertDialogTrigger>
+                <AlertDialogTrigger><ChevronRightCircle/></AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -288,77 +285,98 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
           </span>
         </div>
       </div>
-      <h2 className="text-md mt-4 mb-10">{questions[questionIndex]}</h2>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="thought"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex flex-row space-x-2 items-center justify-between">
-                  <FormLabel>Thought</FormLabel>
-                  <FormMessage />
-                </div>
-                <FormControl>
-                  <Textarea
-                    placeholder="Type your thought here"
-                    className="resize-none"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Come up with a thought before choosing the tool
-                </FormDescription>
-              </FormItem>
-            )}
-          />
-          {!form.watch('finalCheck') ?
-            <>
-              <FormField
-                control={form.control}
-                name="action"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex flex-row space-x-2 items-center justify-between">
-                      <FormLabel>Choose your action</FormLabel>
-                      <FormMessage />
-                    </div>
-                    <Select onValueChange={field.onChange} value={field.value}>
+      {!question ? 
+      <>
+        <p>Looks like we've exhausted all the questions</p>
+      </>
+      :
+      <>
+        <h2 className="text-md mt-4 mb-10">{question && question.question}</h2>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="thought"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex flex-row space-x-2 items-center justify-between">
+                    <FormLabel>Thought</FormLabel>
+                    <FormMessage />
+                  </div>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Type your thought here"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Come up with a thought before choosing the tool
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            {!form.watch('finalCheck') ?
+              <>
+                <FormField
+                  control={form.control}
+                  name="action"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex flex-row space-x-2 items-center justify-between">
+                        <FormLabel>Choose your action</FormLabel>
+                        <FormMessage />
+                      </div>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a tool for your action" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.entries(tools).map(([toolName, toolValue]) => (
+                            <SelectItem key={toolValue.backend} value={toolValue.backend}>
+                              {toolName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="actionInput"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex flex-row space-x-2 items-center justify-between">
+                        <FormLabel>Input for your action</FormLabel>
+                        <FormMessage />
+                      </div>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a tool for your action" />
-                        </SelectTrigger>
+                        <Input
+                          placeholder="Type your action input here"
+                          className="resize-none"
+                          {...field}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {Object.entries(tools).map(([toolName, toolValue]) => (
-                          <SelectItem key={toolValue.backend} value={toolValue.backend}>
-                            {toolName}
-                          </SelectItem>
-                        ))}
-                        {/* <SelectItem value="search_relevant_article_and_summarize">Wikipedia Search</SelectItem>
-                        <SelectItem value="get_wiki_id">Get Wikidata ID</SelectItem>
-                        <SelectItem value="squall_tool">Generate Squall</SelectItem>
-                        <SelectItem value="run_sparql">Run Sparql Query</SelectItem>
-                        <SelectItem value="search_answer_from_article">Wikipedia Search Summary</SelectItem>
-                        <SelectItem value="get_label_from_id">Get Label</SelectItem> */}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
+              </> :
+              <>
               <FormField
                 control={form.control}
-                name="actionInput"
+                name="wikipedia"
                 render={({ field }) => (
                   <FormItem>
                     <div className="flex flex-row space-x-2 items-center justify-between">
-                      <FormLabel>Input for your action</FormLabel>
+                      <FormLabel>Wikipedia Answer</FormLabel>
                       <FormMessage />
                     </div>
                     <FormControl>
                       <Input
-                        placeholder="Type your action input here"
+                        placeholder="Type your Wikipedia answer here"
                         className="resize-none"
                         {...field}
                       />
@@ -366,86 +384,66 @@ export default function Thoughts({onFormSubmit, clearFormData, formData}) {
                   </FormItem>
                 )}
               />
-            </> :
-            <>
-            <FormField
-              control={form.control}
-              name="wikipedia"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex flex-row space-x-2 items-center justify-between">
-                    <FormLabel>Wikipedia Answer</FormLabel>
-                    <FormMessage />
-                  </div>
-                  <FormControl>
-                    <Input
-                      placeholder="Type your Wikipedia answer here"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="wikidata"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex flex-row space-x-2 items-center justify-between">
-                    <FormLabel>Wikidata Answer</FormLabel>
-                    <FormMessage />
-                  </div>
-                  <FormControl>
-                    <Input
-                      placeholder="Type your Wikidata answer here"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            </>
-          }
-          <div className="space-y-0.5">
-            <FormField
-              control={form.control}
-              name="finalCheck"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-sm">
-                      Submit final answer
-                    </FormLabel>
-                    <FormDescription className="text-xs">
-                      Enable this only if you find the answer
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-          <Button type="submit" disabled={isSubmitDisabled || loading}>{
-            loading ? 
-            <span className="flex flex-row">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Processing...
-            </span>
-            :
-            <span>Submit</span>
-          }</Button>
-        </form>
-      </Form>
+              <FormField
+                control={form.control}
+                name="wikidata"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex flex-row space-x-2 items-center justify-between">
+                      <FormLabel>Wikidata Answer</FormLabel>
+                      <FormMessage />
+                    </div>
+                    <FormControl>
+                      <Input
+                        placeholder="Type your Wikidata answer here"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              </>
+            }
+            <div className="space-y-0.5">
+              <FormField
+                control={form.control}
+                name="finalCheck"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-sm">
+                        Submit final answer
+                      </FormLabel>
+                      <FormDescription className="text-xs">
+                        Enable this only if you find the answer
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <Button type="submit" disabled={isSubmitDisabled || loading}>{
+              loading ? 
+              <span className="flex flex-row">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </span>
+              :
+              <span>Submit</span>
+            }</Button>
+          </form>
+        </Form>
+      </>}
     </div>
   )
 }

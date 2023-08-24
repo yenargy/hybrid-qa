@@ -64,19 +64,19 @@ export default function Observations({ data, updateFormData }) {
                 </div>
                 {item.showFeedback ? (
                   <div className="flex flex-row space-x-2 items-center">
-                    <p className="text-sm opacity-50">Was this tool helpful?</p>
+                    <p className="text-sm">Was this observations helpful?</p>
                     <div className="flex flex-row space-x-2">
                       <ThumbsUpIcon
                           onClick={() => {
                             handleRatingClick(item, "yes", index);
                           }}
-                          className="cursor-pointer w-4 opacity-50 hover:opacity-100"
+                          className="cursor-pointer w-4"
                         />
                         <ThumbsDownIcon
                           onClick={() => {
                             handleRatingClick(item, "no", index);
                           }}
-                          className="cursor-pointer w-4 opacity-50 hover:opacity-100"
+                          className="cursor-pointer w-4"
                         />
                     </div>
                   </div>
@@ -88,7 +88,7 @@ export default function Observations({ data, updateFormData }) {
             </div>
           ))}
         </div>
-      ) : ''}
+      ) : 'All your thoughts submission will be here'}
     </div>
   )
 }
