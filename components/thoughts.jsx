@@ -183,7 +183,8 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
     } else {
       //Appending to main form data
       setLoading(true);
-      let hostname = 'http://3.78.218.18:8000';
+      // let hostname = 'http://3.78.218.18:8000';
+      let hostname = 'https://api.hybridqatool.com/fetch_observation';
       let endpoint = '/generate_squall';
       if (values.action === 'GenerateSquall') {
         endpoint = '/generate_squall'
@@ -204,7 +205,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
         endpoint = '/get_label'
       }
       try {
-        const response = await fetch(hostname + endpoint, {
+        const response = await fetch(hostname, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
