@@ -249,7 +249,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
       if (id) {
         console.log('in here');
         ({ data, error } = await supabase
-          .from('ques')
+          .from('thoughts_responses')
           .select('*')
           .eq('id', id)
           .limit(1));
