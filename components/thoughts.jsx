@@ -8,6 +8,7 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { ChevronRightCircle, ChevronLeftCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase";
+import { useSearchParams } from "next/navigation"
 import {
   Form,
   FormControl,
@@ -110,9 +111,10 @@ const formSchema = z.discriminatedUnion('finalCheck', [
 export default function Thoughts({onFormSubmit, clearFormData, formData, questionIndex, incrementQuestionIndex}) {
   const [loading, setLoading] = useState(false);
   const [question, setQuestion] = useState(null);
-  const [noQuestions, setNoQuestions] = useState(true)
   const [loadingState, setLoadingState] = useState('Loading question...');
-  
+  const params = useSearchParams();
+  const questionId = params.get('id');
+
   const defaultValues = {
     thought: "",
     action: "",
@@ -181,8 +183,28 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
     } else {
       //Appending to main form data
       setLoading(true);
+      let hostname = 'http://3.78.218.18:8000';
+      let endpoint = '/generate_squall';
+      if (values.action === 'GenerateSquall') {
+        endpoint = '/generate_squall'
+      }
+      if (values.action === 'WikiSearch') {
+        endpoint = '/wiki_search'
+      }
+      if (values.action === 'WikiSearchSummary') {
+        endpoint = '/wiki_search_summary'
+      }
+      if (values.action === 'GetWikidataID') {
+        endpoint = '/get_wikidata_id'
+      }
+      if (values.action === 'RunSparql') {
+        endpoint = '/run_sparql'
+      }
+      if (values.action === 'GetLabel') {
+        endpoint = '/get_label'
+      }
       try {
-        const response = await fetch('https://api.hybridqatool.com/fetch_observation', {
+        const response = await fetch(hostname + endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -219,16 +241,31 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   }
 
   // Get question from DB
-  const getQuestion = async () => {
+  const getQuestion = async (id) => {
+    console.log(id);
+    let data = null, error = null;
     try {
-      const { data, error } = await supabase
-        .from('random_ques')
-        .select('*')
-        .eq('isused', false)
-        .limit(1);
-      if (error) {
-        throw error;
+      if (id) {
+        console.log('in here');
+        ({ data, error } = await supabase
+          .from('ques')
+          .select('*')
+          .eq('id', id)
+          .limit(1));
+        if (error) {
+          throw error;
+        }  
+      } else {
+        ({ data, error } = await supabase
+          .from('random_ques')
+          .select('*')
+          .eq('isused', false)
+          .limit(1));
+        if (error) {
+          throw error;
+        }
       }
+      
       console.log(data);
       if (data.length === 0) {
         // Handle case when no questions are available
@@ -261,7 +298,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   }, [form.formState.isSubmitSuccessful])
 
   useEffect(() => {
-    getQuestion();
+    getQuestion(questionId);
     console.log(question);
     console.log('fetching question from the db');
   }, []);
@@ -269,8 +306,12 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
   return (
     <div className="w-full max-h-[90%] min-h-[90%] overflow-auto rounded-xl border bg-card text-card-foreground shadow p-10">
       <div className="flex flex-row justify-between">
-        <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-xs font-normal opacity-50">Please answer atleast 15 unique questions</p></h3>
-        <div className="flex flex-row space-x-2">
+        { questionId ?
+          <h3 className="text-xl font-bold pb-2">Question #{questionId}</h3>
+          :
+          <h3 className="text-xl font-bold pb-2">Question #{questionIndex+1} / 15 <p className="text-xs font-normal opacity-50">Please answer atleast 15 unique questions</p></h3>
+        }
+        {!questionId && <div className="flex flex-row space-x-2">
           <span className={!question ? 'opacity-20': 'cursor-pointer hover:opacity-80'}>
             {(!form.formState.isDirty && formData.length === 0) ? 
               <ChevronRightCircle onClick={handleNextQuestionClick} disabled={!question}/> :
@@ -292,6 +333,7 @@ export default function Thoughts({onFormSubmit, clearFormData, formData, questio
             }
           </span>
         </div>
+        }
       </div>
       {!question ? 
       <>

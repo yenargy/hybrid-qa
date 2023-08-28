@@ -40,13 +40,13 @@ export default function Observations({ data, updateFormData }) {
       const responses = item.response;
       //SELECT DISTINCT ?x1 WHERE { wd:Q85 p:P1082 ?x2 . ?x2 ps:P1082 ?x1 . }
       return (
-        <div>
+        <div className="break-words">
           {Array.isArray(responses) ? (
             responses.map((response, index) => (
               <div key={index}>{JSON.stringify(response)}</div>
             ))
           ) : (
-            <div>{responses}</div>
+            responses
           )}
         </div>
       )
